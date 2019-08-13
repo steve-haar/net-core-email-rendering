@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace RazorViewLibrary
+namespace EmailRendering.Models
 {
     public class EmailModel
     {

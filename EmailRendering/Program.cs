@@ -1,50 +1,50 @@
-﻿using Microsoft.AspNetCore.Hosting;
+﻿using EmailRendering.Models;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Internal;
 using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.ObjectPool;
 using RazorLight;
-using RazorViewLibrary;
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace EmailRendering
 {
     public class Program
     {
-        private const int NumberOfPeople = 10;
-        private const int NumberOfEmails = 10;
+        private const int NumberOfPeople = 1000;
+        private const int NumberOfEmails = 1000;
+        private const int Batches = 10;
 
-        public static void Main(string[] args)
+        public async static Task Main(string[] args)
         {
-            string view = "Views/Email.cshtml";
+            string view = "Views.EmbedEmail.cshtml";
             EmailModel model = GetModel();
             RazorViewToStringRenderer razor = GetRazorRenderer();
             RazorLightEngine razorLight = GetRazorLightRenderer();
+            Stopwatch razorStopwatch = new Stopwatch();
+            Stopwatch razorLightStopwatch = new Stopwatch();
+            IEnumerable<Task<string>> tasks;
 
-            int razorMilliseconds = Enumerable.Range(0, NumberOfEmails)
-                .Sum(i =>
-                {
-                    Stopwatch stopwatch = Stopwatch.StartNew();
-                    string html = razor.Render(view, model).Result;
-                    return stopwatch.Elapsed.Milliseconds;
-                });
+            for (int i = 0; i < Batches; i++)
+            {
+                razorStopwatch.Start();
+                tasks = Enumerable.Range(0, NumberOfEmails / Batches)
+                    .Select(_ => razor.Render(view, model));
+                await Task.WhenAll(tasks);
+                razorStopwatch.Stop();
 
-            int razorLightMilliseconds = Enumerable.Range(0, NumberOfEmails)
-                .Sum(i =>
-                {
-                    Stopwatch stopwatch = Stopwatch.StartNew();
-                    string html = razorLight.CompileRenderAsync(view, model).Result;
-                    return stopwatch.Elapsed.Milliseconds;
-                });
 
-            TimeSpan razorTime = TimeSpan.FromMilliseconds(razorMilliseconds);
-            TimeSpan razorLightTime = TimeSpan.FromMilliseconds(razorLightMilliseconds);
+                razorLightStopwatch.Start();
+                tasks = Enumerable.Range(0, NumberOfEmails / Batches)
+                    .Select(_ => razorLight.CompileRenderAsync(view, model));
+                await Task.WhenAll(tasks);
+                razorLightStopwatch.Stop();
+            }
         }
 
         private static EmailModel GetModel()
@@ -58,7 +58,7 @@ namespace EmailRendering
 
         private static RazorViewToStringRenderer GetRazorRenderer()
         {
-            PhysicalFileProvider fileProvider = new PhysicalFileProvider(Directory.GetCurrentDirectory());
+            IFileProvider fileProvider = new EmbeddedFileProvider(Assembly.GetExecutingAssembly());
             HostingEnvironment hostingEnvironment = new HostingEnvironment { ApplicationName = Assembly.GetEntryAssembly().GetName().Name };
             ServiceProvider serviceProvider = new ServiceCollection()
                 .Configure<RazorViewEngineOptions>(options =>
@@ -68,7 +68,7 @@ namespace EmailRendering
                 })
                 .AddSingleton<IHostingEnvironment>(hostingEnvironment)
                 .AddSingleton<ObjectPoolProvider, DefaultObjectPoolProvider>()
-                .AddSingleton<DiagnosticSource>(new DiagnosticListener("Microsoft.AspNetCore"))
+                .AddSingleton<DiagnosticSource>(new DiagnosticListener(nameof(Microsoft.AspNetCore)))
                 .AddSingleton<RazorViewToStringRenderer>()
                 .AddLogging()
                 .AddMvc().Services
@@ -81,7 +81,7 @@ namespace EmailRendering
         {
             return new RazorLightEngineBuilder()
                 .SetOperatingAssembly(Assembly.GetExecutingAssembly())
-                .UseFileSystemProject(Directory.GetCurrentDirectory())
+                .UseEmbeddedResourcesProject(Assembly.GetExecutingAssembly())
                 .UseMemoryCachingProvider()
                 .Build();
         }

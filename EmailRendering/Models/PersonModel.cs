@@ -1,4 +1,4 @@
-﻿namespace RazorViewLibrary
+﻿namespace EmailRendering.Models
 {
     public class PersonModel
     {

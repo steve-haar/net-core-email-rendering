@@ -1,0 +1,13 @@
+﻿@model RazorViewLibrary.EmailModel
+
+<p>Hello World!</p>
+
+@foreach (var person in Model.People)
+{
+    <p>
+        Hello @person.FirstName @person.LastName
+    </p>
+    <p>
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc porta pharetra urna, a molestie orci cursus sollicitudin. Duis sit amet porttitor ante. Mauris vitae tincidunt nisl, sed volutpat tellus. Ut scelerisque turpis posuere ipsum ultricies, efficitur hendrerit neque vehicula. Mauris facilisis erat a interdum dictum. Ut rutrum eget nunc ac rutrum. Vestibulum consectetur ullamcorper elementum. Suspendisse laoreet efficitur auctor.
+    </p>
+}
